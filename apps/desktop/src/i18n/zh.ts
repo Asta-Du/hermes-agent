@@ -2355,6 +2355,14 @@ export const zh: Translations = {
       done: '已标记为定时任务',
       doneTip: '发送后由智能体创建任务'
     },
+    guestClaim: {
+      label: '保留此设置',
+      tip: '关联你的免费访客账户，让它一直属于你',
+      working: '正在关联…',
+      workingTip: '点击取消',
+      done: '设置已保存',
+      doneTip: '账户已关联 — 无需其他操作'
+    },
     snippets: {
       codeReview: {
         label: '代码审查',
@@ -2706,6 +2714,20 @@ export const zh: Translations = {
       smartDescription: '自动评估操作，并在需要时询问',
       off: '关闭',
       offDescription: '不显示审批提示，直接运行'
+    },
+    guestAccount: {
+      title: '访客',
+      chipLabel: '访客',
+      chipTip: '正在使用免费的 Nous 访客账户',
+      description: 'Hermes 已为你设置好免费访客账户，无需注册、无需配置，即刻开始。',
+      modelLabel: '模型',
+      creditsLabel: '包含额度',
+      historyNote: '你的对话、记忆和技能都保存在本机，无论如何都属于你。',
+      claimAction: '保留此设置',
+      claiming: '正在关联…',
+      claimedTitle: '账户已关联',
+      claimedMessage: '访客设置现已归你所有 — 一切都保留了下来。',
+      claimFailed: '无法关联账户'
     },
     statusbar: {
       unknown: '未知',

@@ -2165,6 +2165,14 @@ export const en: Translations = {
       done: 'Marked for scheduling',
       doneTip: 'Send it and the agent creates the job'
     },
+    guestClaim: {
+      label: 'Keep this setup',
+      tip: 'Link your free guest account so it stays yours',
+      working: 'Linking…',
+      workingTip: 'Click to cancel',
+      done: 'Setup saved',
+      doneTip: 'Your account is linked — nothing else to do'
+    },
     snippets: {
       codeReview: {
         label: 'Code review',
@@ -2528,6 +2536,20 @@ export const en: Translations = {
       smartDescription: 'Automatically assess actions and ask when needed',
       off: 'Off',
       offDescription: 'Run without approval prompts'
+    },
+    guestAccount: {
+      title: 'Guest',
+      chipLabel: 'Guest',
+      chipTip: 'Running on a free Nous guest account',
+      description: 'Hermes set up a free guest account so you could start right away. No sign-up, nothing to configure.',
+      modelLabel: 'Model',
+      creditsLabel: 'Included credit',
+      historyNote: 'Your chats, memory, and skills live on this machine and stay yours either way.',
+      claimAction: 'Keep this setup',
+      claiming: 'Linking…',
+      claimedTitle: 'Account linked',
+      claimedMessage: 'Your guest setup is now yours — everything carried over.',
+      claimFailed: 'Could not link the account'
     },
     statusbar: {
       unknown: 'unknown',
