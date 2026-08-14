@@ -1829,6 +1829,15 @@ export interface Translations {
       done: string
       doneTip: string
     }
+    starters: {
+      titles: {
+        morning: string
+        afternoon: string
+        evening: string
+        lateNight: string
+      }
+      categories: readonly { label: string; prompts: readonly string[] }[]
+    }
   }
 
   statusStack: {
