@@ -2199,17 +2199,17 @@ export const en: Translations = {
           label: 'Research',
           prompts: [
             'Find flights to Tokyo in March and watch for price drops',
+            'Apartment hunt: shortlist new listings and set up tours',
             'Compare the top 3 password managers and recommend one',
-            'Read this paper and give me the five claims that matter',
-            'What changed in the latest release of my dependencies?'
+            'Read this paper and give me the five claims that matter'
           ]
         },
         {
           label: 'Automate',
           prompts: [
             'Every morning, summarize my inbox and today\u2019s calendar',
-            'Watch this product page and tell me when the price drops',
-            'Back up my notes folder to a zip every Friday',
+            'Build my weekly grocery order from a list and book delivery',
+            'Draft replies to my unanswered emails and wait for my ok',
             'Alert me when CI fails on the main branch'
           ]
         },
