@@ -666,12 +666,25 @@ _DB_CACHE: Dict[str, Any] = {}
 _DB_BOOTSTRAP_LOCK = threading.Lock()
 _DB_BOOTSTRAP_INFLIGHT: Dict[str, threading.Event] = {}
 
-# How long a loop-thread caller waits for the background bootstrap before
-# degrading to None. Normal SessionDB init is ~10-100ms, so the common case
-# still returns a real DB (no silently dropped goal writes); a contended
-# init (locked state.db mid-migration) blows past this and the caller
-# degrades, with the loop stalled far under the watchdog's probe window.
+# How long a loop-thread caller waits for an ALREADY-RUNNING bootstrap
+# before degrading to None. Normal SessionDB init is ~10-100ms, so a call
+# that arrives mid-bootstrap usually picks the cached instance up within
+# this window; a contended init (locked state.db mid-migration) blows
+# past it and the caller degrades, with the loop stalled far under the
+# watchdog's probe window.
 _DB_BOOTSTRAP_LOOP_WAIT_S = 0.25
+
+# The one call that STARTS the bootstrap (cold cache, nothing in flight)
+# waits this long instead of the short window above. A fresh state.db
+# init is dominated by schema DDL + FTS table creation + the first
+# hermes_cli.config import (journal-mode resolution) and measures ~300ms
+# warm on a fast machine, more on a slow/cold CI box — well past 0.25s,
+# which silently dropped the first /goal write (set response said
+# "Goal set" but nothing persisted). The longer window is a bounded
+# one-time stall: only the kick call pays it, every later call keeps the
+# short window, so a contended migration never stalls the loop
+# repeatedly.
+_DB_BOOTSTRAP_INIT_WAIT_S = 1.5
 
 
 def _bootstrap_session_db(home: str, done: threading.Event) -> None:
@@ -704,7 +717,11 @@ def _get_session_db() -> Optional[Any]:
     seconds — on the gateway's loop thread that starves the loop-liveness
     watchdog, which hard-exits the process (exit 75) and crash-loops the
     gateway (enterprise field report, 2026-08-14). On a cache miss with a running
-    loop we kick a one-shot background bootstrap and return None; every
+    loop we kick a one-shot background bootstrap and wait a bounded grace
+    window for it: the kick call waits the one-time init window
+    (``_DB_BOOTSTRAP_INIT_WAIT_S``) so a healthy cold init completes and the
+    first write is not dropped; later calls wait only the short window
+    (``_DB_BOOTSTRAP_LOOP_WAIT_S``). On timeout we return None; every
     caller already degrades gracefully on None, and a later call returns the
     cached instance.
     """
@@ -745,12 +762,20 @@ def _get_session_db() -> Optional[Any]:
                     name="goals-sessiondb-bootstrap",
                     daemon=True,
                 ).start()
-        # Grace window: a healthy init finishes in tens of ms, so waiting
-        # briefly keeps goal/heartbeat persistence working on the very first
-        # loop-thread call instead of silently dropping it. A contended init
-        # (the crash-loop scenario) exceeds the window and we degrade to
-        # None — a bounded stall far below the watchdog's probe timeout.
-        done.wait(_DB_BOOTSTRAP_LOOP_WAIT_S)
+                # This call starts the bootstrap, so it pays the one-time
+                # init cost: wait long enough for a healthy cold init
+                # (~300ms warm, more on slow CI) to finish, keeping the
+                # first goal/heartbeat write from being silently dropped.
+                wait = _DB_BOOTSTRAP_INIT_WAIT_S
+            else:
+                # Bootstrap already running: brief grace window only. A
+                # healthy init usually finishes in tens of ms, so this
+                # still picks the cached instance up; a contended init
+                # (the crash-loop scenario) exceeds the window and we
+                # degrade to None — a bounded stall far below the
+                # watchdog's probe timeout.
+                wait = _DB_BOOTSTRAP_LOOP_WAIT_S
+        done.wait(wait)
         return _DB_CACHE.get(home)
 
     try:
@@ -799,6 +824,11 @@ def save_goal(session_id: str, state: GoalState) -> None:
         return
     db = _get_session_db()
     if db is None:
+        logger.debug(
+            "GoalManager: session DB unavailable — goal for %s not persisted "
+            "(bootstrap window exceeded; in-memory state still active)",
+            session_id,
+        )
         return
     try:
         db.set_meta(_meta_key(session_id), state.to_json())
