@@ -2545,6 +2545,14 @@ export const zh: Translations = {
     }
   },
 
+  introReveal: {
+    presents: 'Nous Research presents',
+    replay: '重播开场',
+    replayDesc: '再次播放首次启动的开场动画。',
+    skip: '跳过',
+    tagline: '你的智能体，无处不在',
+    wordmark: 'HERMES'
+  },
   install: {
     stageStates: {
       pending: '等待中',

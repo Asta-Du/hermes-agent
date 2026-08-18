@@ -5,8 +5,9 @@ import { BrandMark } from '@/components/brand-mark'
 import { Button } from '@/components/ui/button'
 import { Codicon } from '@/components/ui/codicon'
 import { type Translations, useI18n } from '@/i18n'
-import { CheckCircle2, ExternalLink, Loader2, RefreshCw } from '@/lib/icons'
+import { CheckCircle2, ExternalLink, Loader2, Play, RefreshCw } from '@/lib/icons'
 import { cn } from '@/lib/utils'
+import { isIntroRevealEnabled, replayIntroReveal } from '@/store/intro-reveal'
 import {
   $desktopVersion,
   $updateApply,
@@ -175,6 +176,19 @@ export function AboutSettings() {
           hint={a.branchCommit(status?.branch ?? 'unknown', status?.currentSha?.slice(0, 7) ?? 'unknown')}
           title={a.automaticUpdates}
         />
+
+        {isIntroRevealEnabled() && (
+          <ListRow
+            action={
+              <Button onClick={() => replayIntroReveal()} size="sm" variant="secondary">
+                <Play className="size-3" />
+                {t.introReveal.replay}
+              </Button>
+            }
+            description={t.introReveal.replayDesc}
+            title={t.introReveal.replay}
+          />
+        )}
 
         <UninstallSection />
       </div>

@@ -9061,6 +9061,231 @@ function closePetOverlay() {
   petOverlayWindow = null
 }
 
+// ── Intro reveal ────────────────────────────────────────────────────────────
+// The first-run (and replayable) brand sequence. A transparent, frameless,
+// always-on-top window sized to the entire primary display, so the story
+// plays directly over the user's real desktop — via the exact window shape
+// the pet overlay already proves out (transparent + panel +
+// hiddenInMissionControl on macOS).
+//
+// The overlay renderer is gateway-less (`?win=intro`): the main renderer owns
+// the sequence store and bridges skip/close over IPC; the overlay clocks and
+// renders the sequence and plays its own sound locally (its AudioContext is
+// allowed because the window is created with the chat webPreferences,
+// autoplay included).
+
+let introRevealWindow = null
+// Watchdog: no matter what happens in any renderer, the screen comes back.
+// Armed on open, cleared on close/closed. Slightly over the sequence length.
+let introRevealWatchdog = null
+
+const INTRO_REVEAL_WATCHDOG_MS = 30_000
+
+function clearIntroRevealWatchdog() {
+  if (introRevealWatchdog) {
+    clearTimeout(introRevealWatchdog)
+    introRevealWatchdog = null
+  }
+}
+
+function introRevealUrl() {
+  if (DEV_SERVER) {
+    return `${DEV_SERVER.endsWith('/') ? DEV_SERVER.slice(0, -1) : DEV_SERVER}/?win=intro#/`
+  }
+
+  return `${pathToFileURL(resolveRendererIndex()).toString()}?win=intro#/`
+}
+
+// Frost fades: runtime setVibrancy carries a native animationDuration, so the
+// glass eases in as the window shows and eases out before it closes. 'hud' is
+// the DARK material — the sequence is dark-mode; a light material here is
+// what a mid-dissolve white flash looks like. Best-effort — a failure must
+// never block open/close.
+const INTRO_FROST_IN_MS = 500
+const INTRO_FROST_OUT_MS = 600
+
+function applyIntroFrost(win) {
+  if (!IS_MAC) {
+    return
+  }
+
+  try {
+    win.setVibrancy('hud', { animationDuration: INTRO_FROST_IN_MS })
+  } catch {
+    // Older Electron without animated vibrancy — set it plain.
+    try {
+      win.setVibrancy('hud')
+    } catch {
+      // No vibrancy at all; the CSS wash still carries the dim.
+    }
+  }
+}
+
+function clearIntroFrost(win) {
+  if (!IS_MAC) {
+    return
+  }
+
+  try {
+    win.setVibrancy(null, { animationDuration: INTRO_FROST_OUT_MS })
+  } catch {
+    try {
+      win.setVibrancy(null)
+    } catch {
+      // Window is on its way out regardless.
+    }
+  }
+}
+
+function spawnIntroRevealWindow() {
+  const display = screen.getPrimaryDisplay()
+  const { x, y, width, height } = display.bounds
+
+  const win = new BrowserWindow({
+    x,
+    y,
+    width,
+    height,
+    frame: false,
+    transparent: true,
+    resizable: false,
+    movable: false,
+    minimizable: false,
+    maximizable: false,
+    fullscreenable: false,
+    skipTaskbar: !IS_MAC,
+    hasShadow: false,
+    alwaysOnTop: true,
+    type: IS_MAC ? 'panel' : undefined,
+    hiddenInMissionControl: IS_MAC,
+    // The sequence needs Esc/click-to-skip, so unlike the pet overlay this
+    // window takes focus while it is up.
+    focusable: true,
+    show: false,
+    backgroundColor: '#00000000',
+    // Frost arrives via runtime setVibrancy (see applyIntroFrost) so it can
+    // FADE in/out — a creation-option material pops on at full strength.
+    // 'active' pins the appearance so an unfocused window doesn't collapse
+    // the material to its washed-out inactive look once frost applies.
+    visualEffectState: IS_MAC ? 'active' : undefined,
+    webPreferences: chatWindowWebPreferences(PRELOAD_PATH)
+  })
+
+  try {
+    win.setAlwaysOnTop(true, 'screen-saver')
+    win.setVisibleOnAllWorkspaces(true, IS_MAC ? { visibleOnFullScreen: true, skipTransformProcessType: true } : undefined)
+  } catch {
+    // Not supported everywhere — best effort.
+  }
+
+  wireCommonWindowHandlers(win, zoomWiringForWindowKind('petOverlay'))
+  wireWindowReveal(win, {
+    show: () => {
+      win.show()
+      // Ease the frost in once the window is actually on screen.
+      applyIntroFrost(win)
+    }
+  })
+  installWindowRendererLifecycle(win, { kind: 'overlay', callbacks: { log: rememberLog } })
+
+  win.on('closed', () => {
+    if (introRevealWindow === win) {
+      introRevealWindow = null
+      clearIntroRevealWatchdog()
+    }
+
+    // If the window went away on its own (⌘W), tell the main renderer so its
+    // store doesn't sit in `playing` forever.
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('hermes:intro-reveal:closed')
+    }
+  })
+
+  attachRendererConsoleCapture(win, 'intro-reveal', rememberLog)
+  loadWindowUrl(win, introRevealUrl(), 'Intro reveal')
+
+  return win
+}
+
+function openIntroReveal() {
+  clearIntroRevealWatchdog()
+  // Hard ceiling: whatever happens in any renderer (crash, stalled clock,
+  // dropped IPC), the screen comes back on its own.
+  introRevealWatchdog = setTimeout(() => {
+    introRevealWatchdog = null
+    closeIntroReveal()
+  }, INTRO_REVEAL_WATCHDOG_MS)
+
+  if (introRevealWindow && !introRevealWindow.isDestroyed()) {
+    // Warm replay: the parked window reloads (V8 code cache, no window or
+    // compositor setup) and shows when the fresh surface is ready.
+    const win = introRevealWindow
+
+    win.webContents.once('did-finish-load', () => {
+      if (!win.isDestroyed()) {
+        win.show()
+        applyIntroFrost(win)
+      }
+    })
+    // Parked on about:blank — load the surface back in. Still warm: the
+    // bundle's V8 code cache and the window/compositor survive the park.
+    loadWindowUrl(win, introRevealUrl(), 'Intro reveal')
+
+    return win
+  }
+
+  introRevealWindow = spawnIntroRevealWindow()
+
+  return introRevealWindow
+}
+
+function closeIntroReveal() {
+  clearIntroRevealWatchdog()
+
+  if (introRevealWindow && !introRevealWindow.isDestroyed()) {
+    const win = introRevealWindow
+
+    // Ease the frost out, then PARK the window (hide, not close): the next
+    // replay reuses it for a warm start. A blank page unloads the surface so
+    // nothing ticks while parked; real closes (quit, ⌘W) still destroy it via
+    // the 'closed' handler.
+    clearIntroFrost(win)
+    setTimeout(() => {
+      if (!win.isDestroyed()) {
+        win.hide()
+        void win.webContents.loadURL('about:blank')
+      }
+    }, INTRO_FROST_OUT_MS)
+  }
+}
+
+ipcMain.handle('hermes:intro-reveal:open', async () => {
+  openIntroReveal()
+
+  return { ok: true }
+})
+
+ipcMain.handle('hermes:intro-reveal:close', async () => {
+  closeIntroReveal()
+
+  return { ok: true }
+})
+
+// Main renderer → overlay: beat clock + leaving flag for the exit dissolve.
+ipcMain.on('hermes:intro-reveal:beat', (_event, payload) => {
+  if (introRevealWindow && !introRevealWindow.isDestroyed()) {
+    introRevealWindow.webContents.send('hermes:intro-reveal:beat', payload)
+  }
+})
+
+// Overlay → main renderer: user asked to skip (Esc/click inside the overlay).
+ipcMain.on('hermes:intro-reveal:skip', () => {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('hermes:intro-reveal:skip')
+  }
+})
+
+
 // ── HUD mode ────────────────────────────────────────────────────────────────
 //
 // The chrome-free floating chat: a transparent, frameless, always-on-top

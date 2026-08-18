@@ -2024,6 +2024,14 @@ export const zhHant = defineLocale({
     }
   },
 
+  introReveal: {
+    presents: 'Nous Research presents',
+    replay: '重播開場',
+    replayDesc: '再次播放首次啟動的開場動畫。',
+    skip: '略過',
+    tagline: '你的代理，無處不在',
+    wordmark: 'HERMES'
+  },
   install: {
     stageStates: {
       pending: '等待中',

@@ -2087,6 +2087,14 @@ export const ja = defineLocale({
     }
   },
 
+  introReveal: {
+    presents: 'Nous Research presents',
+    replay: 'イントロを再生',
+    replayDesc: '初回起動時のイントロをもう一度再生します。',
+    skip: 'スキップ',
+    tagline: 'あなたのエージェント、どこでも',
+    wordmark: 'HERMES'
+  },
   install: {
     stageStates: {
       pending: '待機中',

@@ -1897,6 +1897,14 @@ export const ar = defineLocale({
       noReturn: 'لم تعد الواجهة الخلفية إلى الاتصال. قد لا يكون التحديث قد اكتمل — تحقق من مضيف الواجهة الخلفية.'
     }
   },
+  introReveal: {
+    presents: 'Nous Research presents',
+    replay: 'إعادة تشغيل المقدمة',
+    replayDesc: 'شغّل تسلسل المقدمة الأول مرة أخرى.',
+    skip: 'تخطي',
+    tagline: 'وكيلك، في كل مكان',
+    wordmark: 'HERMES'
+  },
   install: {
     stageStates: {
       pending: 'قيد الانتظار',

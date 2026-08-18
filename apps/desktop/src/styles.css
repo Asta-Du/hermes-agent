@@ -234,6 +234,9 @@
     --z-onboarding-popover: 1310;
     --z-setup: 1400;
     --z-crash: 1500;
+    /* First-run intro reveal sits above every boot surface — it plays ahead of
+       the provider picker and dissolves into it. */
+    --z-intro-reveal: 1600;
     --ui-bg-chrome: color-mix(
       in srgb,
       var(--theme-background-seed) var(--theme-mix-chrome),

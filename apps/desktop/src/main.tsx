@@ -45,6 +45,8 @@ if (winParam === 'hud') {
 
 if (winParam === 'overlay') {
   void import('./app/pet-overlay/overlay-root').then(({ mountPetOverlay }) => mountPetOverlay())
+} else if (winParam === 'intro') {
+  void import('./components/intro-reveal/intro-root').then(({ mountIntroReveal }) => mountIntroReveal())
 } else if (winParam === 'quick') {
   void import('./app/quick-entry/quick-entry-root').then(({ mountQuickEntry }) => mountQuickEntry())
 } else if (winParam === 'wake') {

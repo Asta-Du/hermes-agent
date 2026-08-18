@@ -46,6 +46,38 @@ contextBridge.exposeInMainWorld('hermesDesktop', {
       return () => ipcRenderer.removeListener('hermes:pet-overlay:control', listener)
     }
   },
+  // Intro reveal: the full-screen first-run brand sequence. The main renderer
+  // owns the clock; the overlay window (`?win=intro`) renders particles + type
+  // and plays sound locally. Channels mirror the pet overlay's shape.
+  introReveal: {
+    open: () => ipcRenderer.invoke('hermes:intro-reveal:open'),
+    close: () => ipcRenderer.invoke('hermes:intro-reveal:close'),
+    // Main renderer → overlay: sequence clock ({ beat, leaving }).
+    pushBeat: payload => ipcRenderer.send('hermes:intro-reveal:beat', payload),
+    // Overlay → main renderer: user skipped (Esc/click) inside the overlay.
+    skip: () => ipcRenderer.send('hermes:intro-reveal:skip'),
+    // Overlay subscribes to the beat clock.
+    onBeat: callback => {
+      const listener = (_event, payload) => callback(payload)
+      ipcRenderer.on('hermes:intro-reveal:beat', listener)
+
+      return () => ipcRenderer.removeListener('hermes:intro-reveal:beat', listener)
+    },
+    // Main renderer learns the user skipped inside the overlay.
+    onSkip: callback => {
+      const listener = () => callback()
+      ipcRenderer.on('hermes:intro-reveal:skip', listener)
+
+      return () => ipcRenderer.removeListener('hermes:intro-reveal:skip', listener)
+    },
+    // Main renderer learns the overlay window closed on its own (⌘W).
+    onClosed: callback => {
+      const listener = () => callback()
+      ipcRenderer.on('hermes:intro-reveal:closed', listener)
+
+      return () => ipcRenderer.removeListener('hermes:intro-reveal:closed', listener)
+    }
+  },
   // HUD mode: the chrome-free floating chat. A full app renderer (own gateway)
   // sized as a floating bar, so it mounts the real composer. Main owns the
   // window; `onChanged` keeps every window's toggle truthful.
